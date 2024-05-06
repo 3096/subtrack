@@ -41,11 +41,6 @@ impl PathX {
 
     pub fn get_path(&self, path_src: &str, groups: &Vec<String>) -> Result<String, &str> {
         if Some(groups.len() + 1) != self.path_regex.static_captures_len() {
-            println!(
-                "{} {}",
-                groups.len(),
-                self.path_regex.static_captures_len().unwrap()
-            );
             return Err("Number of groups does not match");
         }
         let Some(caps) = self.path_regex.captures(&path_src) else {
@@ -105,9 +100,9 @@ mod tests {
 
     #[test]
     fn test_ada_path_with_parentheses() {
-        let path = PathX::new(r"C:\1\1\(..)3");
+        let path = PathX::new(r"C:\1\1\?3");
         assert_eq!(
-            path.get_path("C:\\1\\1\\023", &vec!["33".to_string()])
+            path.get_path("C:\\1\\1\\?3", &vec!["33".to_string()])
                 .unwrap(),
             "C:\\1\\1\\333"
         );
