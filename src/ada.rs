@@ -4,24 +4,30 @@ pub struct PathX {
     path_regex: Regex,
 }
 
-static RE_MARKER: &str = r"r\*(.+?)\*";
+static RE_MARKER: &str = r"r\*(.+?)\*r";
+static ESCAPED_RE_MARKER: &str = r"r\\\*(.+?)\\\*r";
 static AUTO_GROUPS: [(&str, &str); 2] = [(r"\\\[\d\d\\\]", r"\[(\d\d)\]"), (r"\\\?", r"(\?)")];
 
 impl PathX {
     pub fn new(path: &str) -> PathX {
-        let marker_re = Regex::new(RE_MARKER).unwrap();
-        let path_re = if marker_re.is_match(path) {
-            panic!("Not implemented")
-        } else {
-            let mut path_re = regex::escape(path);
-            for (auto_re, re) in AUTO_GROUPS.iter() {
-                path_re = Regex::new(auto_re)
-                    .unwrap()
-                    .replace_all(&path_re, re.to_string())
-                    .to_string();
-            }
-            path_re
-        };
+        let re_groups: Vec<String> = Regex::new(RE_MARKER)
+            .unwrap()
+            .captures_iter(path)
+            .map(|c| c.get(1).unwrap().as_str().to_string())
+            .collect();
+        let mut path_re = regex::escape(path);
+        for re_group in re_groups {
+            path_re = Regex::new(ESCAPED_RE_MARKER)
+                .unwrap()
+                .replace(&path_re, re_group.as_str())
+                .to_string();
+        }
+        for (auto_re, re) in AUTO_GROUPS.iter() {
+            path_re = Regex::new(auto_re)
+                .unwrap()
+                .replace_all(&path_re, re.to_string())
+                .to_string();
+        }
         PathX {
             path_regex: Regex::new(&path_re).unwrap(),
         }
@@ -65,11 +71,11 @@ mod tests {
 
     #[test]
     fn test_ada_path() {
-        let path = PathX::new("C:\\[00]\\[01]\\[02]");
-        assert!(path.path_regex.is_match("C:\\[00]\\[01]\\[02]"));
+        let path = PathX::new("C:\\[00]\\[01]\\[02]\\r*\\d(\\d\\d)\\d*r");
+        assert!(path.path_regex.is_match("C:\\[00]\\[01]\\[02]\\6039"));
         assert_eq!(
             path.path_regex
-                .captures("C:\\[00]\\[01]\\[02]")
+                .captures("C:\\[00]\\[01]\\[02]\\6039")
                 .unwrap()
                 .get(1)
                 .unwrap()
@@ -79,22 +85,27 @@ mod tests {
         assert_eq!(
             path.get_groups(
                 path.path_regex
-                    .captures("C:\\[00]\\[01]\\[02]")
+                    .captures("C:\\[00]\\[01]\\[02]\\6039")
                     .unwrap()
                     .get(0)
                     .unwrap()
                     .as_str()
             )
             .unwrap(),
-            vec!["00", "01", "02"]
+            vec!["00", "01", "02", "03"]
         );
         assert_eq!(
             path.get_path(
-                "C:\\[00]\\[01]\\[02]",
-                &vec!["11".to_string(), "22".to_string(), "33".to_string()]
+                "C:\\[00]\\[01]\\[02]\\6039",
+                &vec![
+                    "11".to_string(),
+                    "22".to_string(),
+                    "33".to_string(),
+                    "44".to_string()
+                ]
             )
             .unwrap(),
-            "C:\\[11]\\[22]\\[33]"
+            "C:\\[11]\\[22]\\[33]\\6449"
         );
     }
 
